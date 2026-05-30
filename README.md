@@ -2,39 +2,63 @@
 
 Genera un report di percentuale presenze partendo dai PDF di prenotazione esami e presenze per l'Accademia di Belle Arti.
 
-## Cosa fa
+Questo strumento è disponibile in due versioni:
+1. **Versione Web (PHP)**: Ideale per l'utilizzo online direttamente su un server web, senza richiedere l'installazione locale di Python.
+2. **Versione Desktop (Python)**: Ideale per l'utilizzo locale tramite interfaccia grafica (GUI).
 
-Legge i PDF delle liste iscritti agli esami e i PDF dei registri presenze per corso, estrae i dati e genera:
+---
 
-- **riepilogo_esami.html** – pagina con le tabelle per ogni esame (nome, assenze, presenze, percentuale colorata); pulsante Stampa per stampare o salvare come PDF
+## 1. Versione Web (PHP)
 
-## Come usare
+Questa versione è pensata per essere ospitata su un qualsiasi server web con supporto PHP, rendendo lo strumento accessibile online da qualsiasi browser e dispositivo.
 
-L'applicazione si avvia con interfaccia grafica. Non servono cartelle fisse né file di configurazione: le associazioni tra materie e PDF si creano dalla finestra.
+### Caratteristiche
+- **Zero dipendenze esterne**: La libreria PHP per il parsing dei PDF (`smalot/pdfparser`) è inclusa localmente nella cartella `lib/`, quindi non è necessario Composer.
+- **Interfaccia moderna e reattiva**: Sviluppata con Tailwind CSS v4, include transizioni fluide e un design premium con effetto "glassmorphism".
+- **Download diretto**: Il report generato viene scaricato direttamente dall'utente senza salvare dati sensibili sul server.
 
-1. **Avvio** – dalla cartella del progetto:
+### Come usare
+1. Carica il contenuto della cartella `php-version/` sul tuo server web (richiede PHP 7.4 o superiore).
+2. Visita l'indirizzo corrispondente nel browser (es. `https://tuosito.it/presenze/`).
+3. Clicca su **Aggiungi materia** per configurare le materie da elaborare.
+4. Per ciascuna materia:
+   - Inserisci il nome.
+   - Carica il PDF della **lista iscritti** (elenco degli prenotati all'esame).
+   - Carica uno o più PDF del **registro presenze**.
+5. Clicca su **Genera riepilogo** per visualizzare e stampare/salvare il report HTML finale.
+
+---
+
+## 2. Versione Desktop (Python)
+
+Questa versione si avvia con un'interfaccia grafica (GUI) direttamente sul proprio computer.
+
+### Requisiti
+- Python 3
+- Libreria **pypdf** (`pip install pypdf`)
+
+### Come usare
+1. Installa i requisiti ed esegui lo script dalla cartella del progetto:
    ```bash
    pip install pypdf
    python main.py
    ```
-   Oppure doppio clic su **avvia_gui.vbs** (Windows, senza finestra console).
+   Oppure fai doppio clic su **avvia_gui.vbs** (solo Windows, avvia lo script senza mostrare la console nera).
+   
+2. Nella finestra grafica:
+   - Clicca su **Aggiungi riga**.
+   - Inserisci il **nome della materia**.
+   - Clicca su **Sfoglia** in "Prenotati (lista esame)" e seleziona il PDF degli iscritti.
+   - Clicca su **Sfoglia** in "Presenze" e seleziona uno o più PDF delle presenze.
+   
+3. Clicca su **Genera riepilogo**. Verrà creato il file `riepilogo_esami.html` e aperto automaticamente nel browser predefinito.
 
-2. Nella finestra **aggiungi righe**. Per ogni riga:
-   - Inserisci il **nome materia** (titolo usato nella pagina)
-   - Clicca **Sfoglia** in "Prenotati (lista esame)" e seleziona il PDF della lista iscritti
-   - Clicca **Sfoglia** in "Presenze" e seleziona uno o più PDF dei registri presenze
-
-3. Clicca **Genera riepilogo**. Verrà creato `riepilogo_esami.html` e aperto nel browser. Usa il pulsante **Stampa** per stampare o salvare come PDF.
-
-## Requisiti
-
-- Python 3
-- libreria **pypdf** (`pip install pypdf`)
+---
 
 ## Colori nella colonna Percentuale
 
-- **Verde**: percentuale ≥ 50%
-- **Rosso**: percentuale < 50%
+- **Verde**: percentuale presenze ≥ 50%
+- **Rosso**: percentuale presenze < 50%
 
 ## Licenza
 
