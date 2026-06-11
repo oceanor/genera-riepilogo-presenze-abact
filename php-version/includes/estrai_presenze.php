@@ -5,7 +5,7 @@
  * Implementa un parser a stato che cerca nomi in maiuscolo seguiti dal marker "P A".
  * 
  * @param string $testo Testo grezzo estratto dal PDF
- * @return array Array di dizionari con chiavi: nome, assenze, presenze, percentuale
+ * @return array Array di dizionari con chiavi: nome, matricola, assenze, presenze, percentuale
  */
 function estrai_presenze(string $testo): array {
     $risultati = [];
@@ -42,9 +42,13 @@ function estrai_presenze(string $testo): array {
             $word_count = count(explode(' ', $nome_candidate));
 
             if ($word_count >= 2 && $word_count <= 6) {
-                // Step 3: Cerca "P A" nelle 15 righe successive
+                // Step 3: Cerca matricola e "P A" nelle 15 righe successive
                 $k = $j;
+                $matricola = null;
                 while ($k < min($j + 15, $count)) {
+                    if ($matricola === null && preg_match('/Matricola\s+(\d{5})/', $lines[$k], $m_mat)) {
+                        $matricola = $m_mat[1];
+                    }
                     if (strpos($lines[$k], 'P A') !== false) {
                         $block = implode(' ', array_slice($lines, $k, 14));
 
@@ -73,6 +77,7 @@ function estrai_presenze(string $testo): array {
 
                         $risultati[] = [
                             'nome'        => $nome_candidate,
+                            'matricola'   => $matricola,
                             'assenze'     => $assenze_g,
                             'presenze'    => $presenze_g,
                             'percentuale' => $percentuale,
@@ -99,11 +104,14 @@ function estrai_presenze(string $testo): array {
  * @return array Array unito di presenze
  */
 function merge_presenze(array $lista_per_pdf): array {
-    $by_name = [];
+    $by_key = [];
     foreach ($lista_per_pdf as $lista) {
         foreach ($lista as $studente) {
-            $by_name[$studente['nome']] = $studente;
+            $key = !empty($studente['matricola'])
+                ? 'm:' . $studente['matricola']
+                : 'n:' . $studente['nome'];
+            $by_key[$key] = $studente;
         }
     }
-    return array_values($by_name);
+    return array_values($by_key);
 }

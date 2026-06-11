@@ -36,15 +36,20 @@ def testo_pdf(path):
 
 def estrai_iscritti(testo):
     # formato lista esame: matricola 5 cifre, nome, sigla corso tipo DASL11_FOT
-    nomi = []
+    iscritti = []
+    seen = set()
     for line in testo.splitlines():
         line = line.strip()
-        m = re.match(r"^\d+\s+\d{5}\s+(.+?)\s+D[A-Z]{2}L\d+_[A-Z0-9]+\s+\d+\s+\d+", line)
+        m = re.match(r"^\d+\s+(\d{5})\s+(.+?)\s+D[A-Z]{2}L\d+_[A-Z0-9]+\s+\d+\s+\d+", line)
         if m:
-            nome = m.group(1).strip()
+            matricola = m.group(1)
+            nome = m.group(2).strip()
             if nome and len(nome) > 2:
-                nomi.append(nome)
-    return list(dict.fromkeys(nomi))
+                key = matricola or nome
+                if key not in seen:
+                    seen.add(key)
+                    iscritti.append({"nome": nome, "matricola": matricola})
+    return iscritti
 
 
 def estrai_presenze(testo):
@@ -63,7 +68,12 @@ def estrai_presenze(testo):
             nome_candidate = " ".join(nome_candidate.split())
             if 2 <= len(nome_candidate.split()) <= 6:
                 k = j
+                matricola = None
                 while k < min(j + 15, len(lines)):
+                    if matricola is None:
+                        m_mat = re.search(r"Matricola\s+(\d{5})", lines[k])
+                        if m_mat:
+                            matricola = m_mat.group(1)
                     if "P A" in lines[k]:
                         block = " ".join(lines[k:k+14])
                         giorni = re.findall(r"(\d+)g", block)
@@ -82,6 +92,7 @@ def estrai_presenze(testo):
                         percentuale = round(100 * presenze_g / tot, 1) if tot else 0
                         risultati.append({
                             "nome": nome_candidate,
+                            "matricola": matricola,
                             "assenze": assenze_g,
                             "presenze": presenze_g,
                             "percentuale": percentuale,
@@ -95,12 +106,13 @@ def estrai_presenze(testo):
 
 
 def _merge_presenze(lista_per_pdf):
-    # unisce più PDF presenze: ultimo record vince se stesso nome
-    by_name = {}
+    # unisce più PDF presenze: ultimo record vince se stessa matricola o nome
+    by_key = {}
     for lista in lista_per_pdf:
         for s in lista:
-            by_name[s["nome"]] = s
-    return list(by_name.values())
+            key = f"m:{s['matricola']}" if s.get("matricola") else f"n:{s['nome']}"
+            by_key[key] = s
+    return list(by_key.values())
 
 
 def _slug(nome):
@@ -139,28 +151,51 @@ def _genera_html(out):
   <h1>Riepilogo iscritti esami e presenze</h1>
   <div id="contenuto"></div>
   <script>
+    function normalizzaNome(n) {
+      return n.toLowerCase().replace(/\\s+/g, ' ').trim();
+    }
+    function nomeSenzaSpazi(n) {
+      return normalizzaNome(n).replace(/\\s/g, '');
+    }
+    function iscrittoNomeMatricola(iscritto) {
+      if (typeof iscritto === 'string') return { nome: iscritto, matricola: null };
+      return { nome: iscritto.nome || '', matricola: iscritto.matricola || null };
+    }
+    function buildPresenzeMaps(studenti) {
+      var byMat = {}, byNome = {}, byCompatto = {};
+      (studenti || []).forEach(function(s) {
+        if (s.matricola) byMat[s.matricola] = s;
+        byNome[normalizzaNome(s.nome)] = s;
+        byCompatto[nomeSenzaSpazi(s.nome)] = s;
+      });
+      return { byMat: byMat, byNome: byNome, byCompatto: byCompatto };
+    }
+    function trovaPresenze(maps, iscritto) {
+      var info = iscrittoNomeMatricola(iscritto);
+      if (info.matricola && maps.byMat[info.matricola]) return maps.byMat[info.matricola];
+      var k = normalizzaNome(info.nome);
+      if (maps.byNome[k]) return maps.byNome[k];
+      var c = nomeSenzaSpazi(info.nome);
+      if (maps.byCompatto[c]) return maps.byCompatto[c];
+      return null;
+    }
     var dati = """ + json_esc + """;
     var html = '';
     dati.corsi.forEach(function(corso) {
       html += '<div class="corso">';
       var nomeCorso = corso.nome_esame || corso.id;
       html += '<h2>' + nomeCorso.replace(/</g,'&lt;') + '</h2>';
-      var presenzeMap = {};
-      if (corso.studenti_con_presenze) {
-        corso.studenti_con_presenze.forEach(function(s) {
-          var k = s.nome.toLowerCase().replace(/\\s+/g,' ').trim();
-          presenzeMap[k] = s;
-        });
-      }
+      var presenzeMaps = buildPresenzeMaps(corso.studenti_con_presenze);
       var hasPres = corso.studenti_con_presenze && corso.studenti_con_presenze.length > 0;
       if (hasPres) {
         html += '<table><thead><tr><th>Nome</th><th>Assenze</th><th>Presenze</th><th>Percentuale</th></tr></thead><tbody>';
       } else {
         html += '<table><thead><tr><th>Nome</th></tr></thead><tbody>';
       }
-      (corso.iscritti_esame || []).forEach(function(nome) {
-        var key = nome.toLowerCase().replace(/\\s+/g,' ').trim();
-        var p = presenzeMap[key];
+      (corso.iscritti_esame || []).forEach(function(iscritto) {
+        var info = iscrittoNomeMatricola(iscritto);
+        var nome = info.nome;
+        var p = trovaPresenze(presenzeMaps, iscritto);
         if (hasPres) {
           var ass = p ? p.assenze : '—';
           var pre = p ? p.presenze : '—';

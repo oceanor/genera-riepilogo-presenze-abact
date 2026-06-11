@@ -1,6 +1,79 @@
 <?php
 
 /**
+ * Normalizza un nome per confronto (lowercase + spazi collassati).
+ */
+function normalizza_nome(string $nome): string {
+    return trim(preg_replace('/\s+/', ' ', mb_strtolower($nome)));
+}
+
+/**
+ * Rimuove tutti gli spazi dal nome normalizzato (fallback per nomi spezzati dal PDF).
+ */
+function nome_senza_spazi(string $nome): string {
+    return str_replace(' ', '', normalizza_nome($nome));
+}
+
+/**
+ * Estrae nome e matricola da un iscritto (supporta formato legacy stringa).
+ *
+ * @return array{0: string, 1: ?string} [nome, matricola]
+ */
+function iscritto_nome_matricola($iscritto): array {
+    if (is_array($iscritto)) {
+        return [
+            $iscritto['nome'] ?? '',
+            $iscritto['matricola'] ?? null,
+        ];
+    }
+    return [(string)$iscritto, null];
+}
+
+/**
+ * Cerca presenze per iscritto: matricola → nome → nome senza spazi.
+ */
+function trova_presenze(array $maps, $iscritto): ?array {
+    [$nome, $matricola] = iscritto_nome_matricola($iscritto);
+
+    if ($matricola && isset($maps['byMatricola'][$matricola])) {
+        return $maps['byMatricola'][$matricola];
+    }
+
+    $key = normalizza_nome($nome);
+    if (isset($maps['byNome'][$key])) {
+        return $maps['byNome'][$key];
+    }
+
+    $compatto = nome_senza_spazi($nome);
+    if (isset($maps['byNomeCompatto'][$compatto])) {
+        return $maps['byNomeCompatto'][$compatto];
+    }
+
+    return null;
+}
+
+/**
+ * Costruisce le mappe di lookup dalle presenze estratte.
+ */
+function build_presenze_maps(array $studenti): array {
+    $maps = [
+        'byMatricola' => [],
+        'byNome' => [],
+        'byNomeCompatto' => [],
+    ];
+
+    foreach ($studenti as $s) {
+        if (!empty($s['matricola'])) {
+            $maps['byMatricola'][$s['matricola']] = $s;
+        }
+        $maps['byNome'][normalizza_nome($s['nome'])] = $s;
+        $maps['byNomeCompatto'][nome_senza_spazi($s['nome'])] = $s;
+    }
+
+    return $maps;
+}
+
+/**
  * Genera l'HTML di riepilogo a partire dai dati analizzati.
  * Utilizza TailwindCSS v4 per lo styling, con un design premium.
  * 
@@ -63,13 +136,7 @@ function genera_html(array $dati): string {
         $html .= '<h2 class="text-2xl font-bold text-slate-800 tracking-tight">' . $nomeCorso . '</h2>';
         $html .= '</div>';
         
-        $presenzeMap = [];
-        if (!empty($corso['studenti_con_presenze'])) {
-            foreach ($corso['studenti_con_presenze'] as $s) {
-                $key = trim(preg_replace('/\s+/', ' ', mb_strtolower($s['nome'])));
-                $presenzeMap[$key] = $s;
-            }
-        }
+        $presenzeMaps = build_presenze_maps($corso['studenti_con_presenze'] ?? []);
         
         $hasPres = !empty($corso['studenti_con_presenze']);
         
@@ -96,9 +163,9 @@ function genera_html(array $dati): string {
         $html .= '<tbody class="divide-y divide-slate-100">';
         
         $iscritti = $corso['iscritti_esame'] ?? [];
-        foreach ($iscritti as $nome) {
-            $key = trim(preg_replace('/\s+/', ' ', mb_strtolower($nome)));
-            $p = $presenzeMap[$key] ?? null;
+        foreach ($iscritti as $iscritto) {
+            [$nome, ] = iscritto_nome_matricola($iscritto);
+            $p = trova_presenze($presenzeMaps, $iscritto);
             
             $html .= '<tr class="hover:bg-slate-50/50 transition-colors">';
             $html .= '<td class="py-3.5 px-5 whitespace-nowrap font-medium text-slate-700">' . htmlspecialchars($nome) . '</td>';
