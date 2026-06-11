@@ -109,17 +109,74 @@ function genera_html(array $dati): string {
     body { font-family: \'Outfit\', sans-serif; }
     .custom-gradient-bg { background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); }
     @media print {
+      @page {
+        size: A4 portrait;
+        margin: 8mm 10mm;
+      }
       .no-print { display: none !important; }
-      .page-break { page-break-after: always; }
-      .page-break:last-child { page-break-after: auto; }
-      body { background: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .shadow-xl, .shadow-sm { box-shadow: none !important; border: 1px solid #e2e8f0; }
-      th, td { border-bottom-color: #e2e8f0 !important; }
+      html, body {
+        width: 100% !important;
+        max-width: 100% !important;
+        overflow: visible !important;
+        background: white !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      body {
+        min-height: auto !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+      .report-container {
+        max-width: none !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      .report-table-wrap {
+        overflow: visible !important;
+        border-radius: 0 !important;
+      }
+      .page-break {
+        page-break-after: always;
+        break-after: page;
+        margin-bottom: 0 !important;
+        padding: 0.5rem 0 !important;
+        border-radius: 0 !important;
+        overflow: visible !important;
+      }
+      .page-break:last-child { page-break-after: auto; break-after: auto; }
+      .shadow-xl, .shadow-sm, .shadow-lg { box-shadow: none !important; }
+      .print-hide-decor { display: none !important; }
+      .overflow-x-auto, .overflow-hidden { overflow: visible !important; }
+      table { width: 100% !important; table-layout: fixed; }
+      .whitespace-nowrap {
+        white-space: normal !important;
+        word-break: break-word;
+      }
+      th, td {
+        padding: 0.3rem 0.45rem !important;
+        font-size: 10pt !important;
+        border-bottom: 1px solid #e2e8f0 !important;
+      }
+      th { font-size: 9pt !important; }
+      h1 { font-size: 17pt !important; color: #1e293b !important; }
+      h2 { font-size: 13pt !important; }
+      .report-header { padding: 0.5rem 0 !important; margin-bottom: 0.5rem !important; }
+      .mb-10, .mb-12, .mb-8, .mb-6 { margin-bottom: 0.4rem !important; }
+      .p-8 { padding: 0.5rem 0 !important; }
+      .py-10 { padding-top: 0 !important; padding-bottom: 0 !important; }
+      td span.inline-flex svg { display: none !important; }
+      td span.inline-flex {
+        padding: 0.1rem 0.35rem !important;
+        font-size: 9pt !important;
+        gap: 0 !important;
+      }
     }
   </style>
 </head>
 <body class="custom-gradient-bg text-slate-800 min-h-screen py-10 selection:bg-indigo-200 selection:text-indigo-900">
-  <div class="max-w-5xl mx-auto px-4 sm:px-6">
+  <div class="report-container max-w-5xl mx-auto px-4 sm:px-6">
     <div class="no-print flex justify-between items-center mb-8">
       <a href="' . $home . '" class="text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-2 transition bg-white py-2 px-4 rounded-xl shadow-sm border border-indigo-100 hover:shadow-md">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
@@ -133,8 +190,8 @@ function genera_html(array $dati): string {
       </button>
     </div>
     
-    <div class="bg-white rounded-2xl shadow-xl shadow-slate-200/50 p-8 mb-10 border border-slate-100 relative overflow-hidden">
-      <div class="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 z-0"></div>
+    <div class="report-header bg-white rounded-2xl shadow-xl shadow-slate-200/50 p-8 mb-10 border border-slate-100 relative overflow-hidden">
+      <div class="print-hide-decor absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 z-0"></div>
       <h1 class="text-3xl sm:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-indigo-900 tracking-tight relative z-10">Riepilogo Esami e Presenze</h1>
       <p class="text-slate-500 font-medium mt-2 relative z-10 uppercase tracking-widest text-sm">Accademia di Belle Arti</p>
     </div>';
@@ -152,7 +209,7 @@ function genera_html(array $dati): string {
         
         $hasPres = !empty($corso['studenti_con_presenze']);
         
-        $html .= '<div class="overflow-x-auto rounded-xl border border-slate-200">';
+        $html .= '<div class="report-table-wrap overflow-x-auto rounded-xl border border-slate-200">';
         $html .= '<table class="w-full text-left border-collapse">';
         
         if ($hasPres) {
