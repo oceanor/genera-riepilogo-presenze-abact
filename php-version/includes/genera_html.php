@@ -74,6 +74,17 @@ function build_presenze_maps(array $studenti): array {
 }
 
 /**
+ * URL della home dell'app (directory dello script, senza index.php).
+ * Con .htaccess root, /presenze-abact/ viene riscritto su php-version/;
+ * index.php in root può essere assente o vuoto e non va usato nel link.
+ */
+function home_url(): string {
+    $script = str_replace('\\', '/', $_SERVER['SCRIPT_NAME'] ?? '');
+    $dir = rtrim(dirname($script), '/');
+    return ($dir === '' || $dir === '.') ? './' : $dir . '/';
+}
+
+/**
  * Genera l'HTML di riepilogo a partire dai dati analizzati.
  * Utilizza TailwindCSS v4 per lo styling, con un design premium.
  * 
@@ -81,6 +92,7 @@ function build_presenze_maps(array $studenti): array {
  * @return string HTML completo
  */
 function genera_html(array $dati): string {
+    $home = htmlspecialchars(home_url(), ENT_QUOTES, 'UTF-8');
     $html = '<!DOCTYPE html>
 <html lang="it">
 <head>
@@ -109,7 +121,7 @@ function genera_html(array $dati): string {
 <body class="custom-gradient-bg text-slate-800 min-h-screen py-10 selection:bg-indigo-200 selection:text-indigo-900">
   <div class="max-w-5xl mx-auto px-4 sm:px-6">
     <div class="no-print flex justify-between items-center mb-8">
-      <a href="index.php" class="text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-2 transition bg-white py-2 px-4 rounded-xl shadow-sm border border-indigo-100 hover:shadow-md">
+      <a href="' . $home . '" class="text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-2 transition bg-white py-2 px-4 rounded-xl shadow-sm border border-indigo-100 hover:shadow-md">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
         Torna alla Home
       </a>
