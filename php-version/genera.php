@@ -13,8 +13,36 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $upload_dir = __DIR__ . '/uploads/';
-if (!is_dir($upload_dir)) {
-    mkdir($upload_dir, 0755, true);
+
+/**
+ * Garantisce che la cartella upload esista e sia scrivibile.
+ * Restituisce un messaggio d'errore oppure null se OK.
+ */
+function ensure_upload_dir(string $dir): ?string {
+    if (!is_dir($dir)) {
+        if (!@mkdir($dir, 0755, true) && !is_dir($dir)) {
+            return 'Impossibile creare la cartella uploads. Verificare i permessi su php-version/.';
+        }
+    }
+    if (!is_writable($dir)) {
+        @chmod($dir, 0755);
+        if (!is_writable($dir)) {
+            return 'Cartella uploads non scrivibile: verificare i permessi su php-version/uploads/.';
+        }
+    }
+    return null;
+}
+
+/**
+ * Messaggio di errore arricchito per fallimento move_uploaded_file.
+ */
+function move_upload_error(string $basename): string {
+    $msg = "Impossibile salvare il file ($basename).";
+    $last = error_get_last();
+    if ($last && !empty($last['message'])) {
+        $msg .= ' ' . $last['message'];
+    }
+    return $msg;
 }
 
 // Helper per pulire la cartella uploads al termine
@@ -30,11 +58,17 @@ $temp_files = [];
 $corsi = [];
 $errori = [];
 
+$upload_dir_error = ensure_upload_dir($upload_dir);
+if ($upload_dir_error !== null) {
+    $errori[] = $upload_dir_error;
+}
+
 try {
     $nomi_materia = $_POST['nome_materia'] ?? [];
     $file_prenotati = $_FILES['file_prenotati'] ?? [];
 
-    foreach ($nomi_materia as $index => $nome_materia) {
+    if ($upload_dir_error === null) {
+        foreach ($nomi_materia as $index => $nome_materia) {
         $nome_materia = trim($nome_materia);
         if (empty($nome_materia)) continue;
 
@@ -46,7 +80,7 @@ try {
 
         $path_prenotati = $upload_dir . uniqid('prenotati_') . '.pdf';
         if (!move_uploaded_file($file_prenotati['tmp_name'][$index], $path_prenotati)) {
-            $errori[] = "Impossibile salvare il file prenotati per '$nome_materia'.";
+            $errori[] = move_upload_error(basename($path_prenotati)) . " (prenotati per '$nome_materia')";
             continue;
         }
         $temp_files[] = $path_prenotati;
@@ -97,6 +131,8 @@ try {
                             } catch (Exception $e) {
                                 $errori[] = "Errore lettura file presenze per '$nome_materia': " . $e->getMessage();
                             }
+                        } else {
+                            $errori[] = move_upload_error(basename($path_presenze)) . " (presenze per '$nome_materia')";
                         }
                     }
                 }
@@ -111,6 +147,7 @@ try {
             'iscritti_esame' => $iscritti,
             'studenti_con_presenze' => $studenti_presenze
         ];
+        }
     }
 
     if (empty($corsi) && empty($errori)) {
